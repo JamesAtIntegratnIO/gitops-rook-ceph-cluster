@@ -1,0 +1,56 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: rook-ceph
+  namespace: argocd
+spec:
+  goTemplate: true
+  syncPolicy:
+    preserveResourcesOnDeletion: false
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              values:
+                addonChart: app-template
+                addonChartVersion: 3.2.1
+                addonChartRepository: https://bjw-s.github.io/helm-charts
+              selector:
+                matchExpressions:
+                  - key: cluster_name
+                    operator: In
+                    values: [media-cluster]
+                  - key: environment
+                    operator: In
+                    values: [prod]    
+          - list:
+              elements:
+                - appName: sonarr
+                - appName: radarr
+                - appName: sabnzbd
+  template:
+    metadata:
+      name: 'rook-ceph-{{.appName}}'
+    spec:
+      project: default
+      sources:
+        - chart: '{{.values.addonChart}}'
+          repoURL: '{{.values.addonChartRepository}}'
+          targetRevision: '{{.values.addonChartVersion}}'
+          helm:
+            releaseName: '{{.appName}}'
+            ignoreMissingValueFiles: true
+            valueFiles: 
+              - $values/environments/default/{{.appName}}/values.yaml
+              - $values/environments/{{.metadata.annotations.environment}}/{{.appName}}/values.yaml
+        - repoURL: '{{.metadata.annotations.workload_repo_url}}'
+          path: 'environments/{{.metadata.annotations.environment}}/{{.appName}}'
+          targetRevision: '{{.metadata.annotations.workload_repo_revision}}'
+          ref: values
+      destination:
+        namespace: 'media'
+        name: '{{.name}}'
+      syncPolicy:
+        automated: {}
+        syncOptions:
+          - CreateNamespace=true
