@@ -15,27 +15,43 @@ spec:
                 matchExpressions:
                   - key: cluster_name
                     operator: In
-                    values: [media-cluster]
+                    values: [rook-ceph-cluster]
                   - key: environment
                     operator: In
                     values: [prod]    
           - list:
               elements:
-                - appName: sonarr
-                - appName: radarr
-                - appName: sabnzbd
+                - appName: rook-ceph
+                  addonChart: rook-ceph
+                  # anything not staging or prod use this version
+                  addonChartVersion: 1.14.8
+                  addonChartRepository: https://charts.rook.io/release
+                - appName: rook-ceph-cluster
+                  addonChart: rook-ceph-cluster
+                  # anything not staging or prod use this version
+                  addonChartVersion: 1.14.8
+                  addonChartRepository: https://charts.rook.io/release
   template:
     metadata:
-      name: 'rook-ceph-{{.appName}}'
+      name: '{{.appName}}'
     spec:
       project: default
       sources:
+        - chart: '{{.addonChart}}'
+          repoURL: '{{.addonChartRepository}}'
+          targetRevision: '{{.addonChartVersion}}'
+          helm:
+            releaseName: '{{.appName}}'
+            ignoreMissingValueFiles: true
+            valueFiles: 
+              - $values/environments/default/{{.appName}}/values.yaml
+              - $values/environments/{{.metadata.annotations.environment}}/{{.appName}}/values.yaml
         - repoURL: '{{.metadata.annotations.workload_repo_url}}'
-          path: 'workloads/{{.appName}}'
+          path: 'environments/{{.metadata.annotations.environment}}/{{.appName}}'
           targetRevision: '{{.metadata.annotations.workload_repo_revision}}'
           ref: values
       destination:
-        namespace: 'media'
+        namespace: 'rook-ceph'
         name: '{{.name}}'
       syncPolicy:
         automated: {}
