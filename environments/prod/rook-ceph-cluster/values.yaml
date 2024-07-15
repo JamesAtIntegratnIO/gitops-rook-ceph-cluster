@@ -1,1 +1,23 @@
 operatorNamespace: rook-ceph
+
+cephClusterSpec:
+  dashboard:
+    enabled: true
+
+ingress:
+  dashboard:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/rewrite-target: /ceph-dashboard/$2
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+      nginx.ingress.kubernetes.io/server-snippet: |
+        proxy_ssl_verify off;
+    host:
+      name: dashboard.rook-ceph-cluster.integratn.tech
+      path: "/ceph-dashboard(/|$)(.*)"
+    tls:
+    - hosts:
+      - dashboard.rook-ceph-cluster.integratn.tech
+      secretName: dashboard-tls
